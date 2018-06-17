@@ -64,7 +64,7 @@ type linkCommand struct {
 	providerID uint32 `short:"p" long:"provider" description:"ID of provider to link. Use getDeviceProviders to list." required:"true"`
 }
 
-//Execute for getProvidersCommand
+//Execute for linkCommand
 func (cmd *linkCommand) Execute(args []string) error {
 	conn, client, ctx, cancel := connect()
 	defer conn.Close()
@@ -84,10 +84,40 @@ func (cmd *linkCommand) Execute(args []string) error {
 
 //////////////////////////////////////////////////////////////////////////
 
+type getDevicesCommand struct {
+}
+
+//Execute for getDevicesCommand
+func (cmd *getDevicesCommand) Execute(args []string) error {
+	conn, client, ctx, cancel := connect()
+	defer conn.Close()
+	defer cancel()
+
+	r, err := client.GetDevices(ctx, &pb.GetDevicesRequest{})
+	if err != nil {
+		return fmt.Errorf("GetDeivces failed: %v", err)
+	}
+
+	log.Println("Devices:")
+
+	w := new(tabwriter.Writer)
+	w.Init(os.Stdout, 5, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "id\tname\tarchetype\t# of lights")
+	for key, device := range r.GetDevices() {
+		fmt.Fprintf(w, "%v\t%v\t%v", key, device.Name, device.ArchetypeId)
+	}
+	w.Flush()
+
+	return nil
+}
+
+//////////////////////////////////////////////////////////////////////////
+
 var parser = flags.NewParser(&Options, flags.Default)
 
 func main() {
 	parser.AddCommand("getProviders", "get the list of currently-known device providers (e.g. Hue bridges)", "", &getProvidersCommand{})
 	parser.AddCommand("link", "pair the given device provider. You should press the link button on the hardware before sending this command", "", &linkCommand{})
+	parser.AddCommand("getDevices", "get the list of known devices (things that have lights on them)", "", &getDevicesCommand{})
 	parser.Parse()
 }
